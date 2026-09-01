@@ -36,7 +36,7 @@ The project builds a **vision-guided, force-sensitive robotic gripper**: student
 
 ## 2. Wiring / Circuit Diagram
 
-![Circuit Diagram](Images/QS Sensitive grippers circuit.png)
+![Circuit Diagram](Images/QS_Sensitive_grippers_circuit.png)
 
 Confirmed wiring:
 
