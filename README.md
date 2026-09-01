@@ -109,13 +109,52 @@ Each kit has a unique Bluetooth MAC address — give each kit's ESP32 a distinct
 
 ## 5. Computer Vision Layer (`code/`)
 
-A separate, software-only layer adds perception on top of the hardware:
+A separate, software-only layer adds perception on top of the hardware. One webcam is shared across all components, used in sequential modes rather than all at once — this keeps CPU load low and stays compatible with ordinary student laptops.
 
-- **MediaPipe Gesture Recognizer** — recognizes `Open_Palm` / `Closed_Fist` and maps them to `OPEN` / `CLOSE` commands
-- **YOLOE** — open-vocabulary object recognition, so the robot can identify what it's about to grasp
-- **Bonus: facial-expression feedback** — an experimental branch that uses a pretrained emotion-recognition model as an alternative human-robot feedback channel (does the human look happy with the grasp result?) instead of an explicit gesture command
+### ML Components
 
-See `code/README.md` for setup, environment, and script-by-script details. This layer is verified once per machine rather than repeated per hardware kit.
+| Component | What it does | Link |
+|---|---|---|
+| **Google MediaPipe — Gesture Recognizer** | Recognizes hand gestures (`Open_Palm` / `Closed_Fist`) and maps them to `OPEN` / `CLOSE` commands | [MediaPipe Gesture Recognizer docs](https://developers.google.com/edge/mediapipe/solutions/vision/gesture_recognizer/python) · [model download](https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/latest/gesture_recognizer.task) |
+| **Ultralytics YOLOE** | Open-vocabulary object recognition — the robot identifies what's in front of it from text prompts, no training required | [YOLOE docs](https://docs.ultralytics.com/models/yoloe/) · [Ultralytics GitHub](https://github.com/ultralytics/ultralytics) |
+| **Bonus: Facial-expression (emotion) recognition** | Pretrained EfficientNet-B2 classifier used as an alternative feedback channel — instead of a gesture command, the robot reads whether the human looks happy with the grasp result | [Teammate project](https://github.com/CaptainEv1dence/dl-project) · uses [OpenCV Haar cascades](https://github.com/opencv/opencv/tree/master/data/haarcascades) for face detection |
+
+`OpenCV` (https://opencv.org/) underlies all three — it handles the webcam feed, frame drawing, and display, but doesn't do the recognition itself.
+
+### Files under `code/`
+
+| File | Purpose | How to run |
+|---|---|---|
+| `00_camera_test.py` | Confirms OpenCV can access the webcam, isolated from any AI model | `python 00_camera_test.py` — press `Q` to quit |
+| `01_gesture_test.py` | Tests MediaPipe Gesture Recognizer alone; displays `Open_Palm`→`OPEN` / `Closed_Fist`→`CLOSE` on screen (no hardware yet) | `python 01_gesture_test.py` — requires `gesture_recognizer.task` in the same folder |
+| `02_yolo_test.py` | Tests YOLOE object recognition alone against a small text-prompt class list | `python 02_yolo_test.py` — first run downloads model weights (~254 MB text encoder), do this before the workshop |
+| `03_yolo_gesture_sequence.py` | Combines YOLOE + MediaPipe sequentially: detect object → human confirms (`C`) → gesture control (`Open_Palm`/`Closed_Fist`) → `R` to reset | `python 03_yolo_gesture_sequence.py` |
+| `04_emotion_test.py` | Tests the facial-expression model alone: Haar face detection → EfficientNet-B2 → smoothed emotion label | `python 04_emotion_test.py` — requires `haarcascade_frontalface_default.xml` and the `emotion_model/` checkpoint folder |
+| `05_yolo_emotion_sequence.py` | Combines YOLOE + facial-expression feedback (no MediaPipe): detect object → confirm (`C`) → `CLOSE` command → 5s feedback window checks for happiness → `SUCCESS`/`FAILED` | `python 05_yolo_emotion_sequence.py` |
+| `gesture_recognizer.task` | Pretrained MediaPipe Gesture Recognizer model file | required by `01_gesture_test.py` and `03_yolo_gesture_sequence.py` |
+| `haarcascade_frontalface_default.xml` | OpenCV Haar cascade for face detection | required by `04_emotion_test.py` and `05_yolo_emotion_sequence.py` |
+| `mobileclip2_b.ts` | Text encoder used by YOLOE when matching text-prompt classes | required by any script using YOLOE |
+
+### Environment setup
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
+
+python -m pip install --upgrade pip
+python -m pip install mediapipe opencv-python
+python -m pip install -U ultralytics
+```
+
+Verify the install:
+
+```bash
+python -c "import cv2, mediapipe, ultralytics, torch, torchvision, numpy, PIL; print('Environment OK')"
+```
+
+Run `02_yolo_test.py` and `04_emotion_test.py` once per laptop **before** the workshop — the first run downloads model weights and text encoders, which shouldn't happen during limited student session time.
+
+This layer is verified once per machine rather than repeated per hardware kit — see `code/README.md` (from the original CV prototype notes) for full script-by-script pipeline diagrams and troubleshooting.
 
 ---
 
